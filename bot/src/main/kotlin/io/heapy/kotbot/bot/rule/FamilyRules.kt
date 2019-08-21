@@ -20,10 +20,10 @@ enum class FamilyCallbacks {
  * Family chat message mentions chat, report sender and, if `/report` message is a reply to another one, report target.
  * It also provides a reference to report or report target if possible.
  */
-fun reportRule(store: BotStore, state: State) = commandRule("/report", state) { _, message, _ ->
+fun <C : Chat, F: Family<C>> reportRule(store: BotStore<C, F>, state: State<C, F>) = commandRule("/report", state) { _, message, _ ->
     val chat = message.chat
     val family = store.families
-        .firstOrNull { message.chatId in it.chatIds }
+        .firstOrNull { message.chatId in it.chats.map(Chat::id) }
         ?: return@commandRule emptyList()
     val reportMessage = if(message.isReply) message.replyToMessage else message
 
@@ -36,7 +36,7 @@ fun reportRule(store: BotStore, state: State) = commandRule("/report", state) { 
 
     listOf(
         SendMessageAction(
-            family.adminChatId,
+            family.adminChat.id,
             "Report in $chatMention:$senderText$reportText$reportRef"
         )
     )
@@ -45,7 +45,7 @@ fun reportRule(store: BotStore, state: State) = commandRule("/report", state) { 
 /**
  * Callback query processing [FamilyCallbacks.RefreshAdminPermissions].
  */
-fun refreshPermissionsCallbackRule(state: State) = callbackQueryRule { callback, _ ->
+fun <C : Chat, F: Family<C>> refreshPermissionsCallbackRule(state: State<C, F>) = callbackQueryRule { callback, _ ->
     if(callback.data != FamilyCallbacks.RefreshAdminPermissions.name)
         emptyList()
     else
@@ -57,41 +57,37 @@ fun refreshPermissionsCallbackRule(state: State) = callbackQueryRule { callback,
  * Command `/start`: connects new chat to existing family.
  * TODO: process bot addition to chat without prior request from family admin chat.
  */
-fun familyStartRule(state: State) = commandRule("/start", state) { args, message, queries ->
-    val startText = "/start@${state.botUserName}"
-
+fun <C : Chat, F: Family<C>> familyStartRule(store: BotStore<C, F>, state: State<C, F>) = commandRule("/start", state) { args, message, queries ->
     val messageId = message.messageId
     val chatId = message.chat.id
     val chatTitle = "\"${message.chat.title}\""
     val from = message.from
-    val text = message.text
-    val hash = text.substring(startText.length + 1)
-    val family = state.familyAddRequests[hash]
+    val family = state.familyAddRequests[args]
 
     when {
         family == null -> listOf(
             SendMessageAction(chatId, "The request is expired, please try again!")
         )
-        chatId in family.chatIds -> listOf(
+        chatId in family.chats.map(Chat::id) -> listOf(
             DeleteMessageAction(chatId, messageId),
             SendMessageAction(
-                family.adminChatId,
+                family.adminChat.id,
                 "Picked chat $chatTitle is already a member " +
                         "of this family, please pick another one")
         )
         !queries.isAdminUser(chatId, from.id) -> listOf(
             SendMessageAction(
-                family.adminChatId,
+                family.adminChat.id,
                 "Sorry, @${from.userName}, you are not an admin in $chatTitle")
         )
         else -> {
-            family.chatIds += chatId
+            store.addChatToFamily(family, chatId)
             val deleteAction = DeleteMessageAction(chatId, messageId)
             if(!queries.isAdminUser(chatId, state.botUserId)) {
                 state.deferAction(chatId, deleteAction)
                 listOf(
                     SendMessageAction(
-                        family.adminChatId,
+                        family.adminChat.id,
                         "Chat $chatTitle is now a member of the family! Don't forget " +
                                 "to give the bot admin rights :)",
                         listOf(
@@ -107,7 +103,7 @@ fun familyStartRule(state: State) = commandRule("/start", state) { args, message
                 listOf(
                     deleteAction,
                     SendMessageAction(
-                        family.adminChatId,
+                        family.adminChat.id,
                         "Chat $chatTitle is now a member of the family!")
                 )
             }
@@ -118,7 +114,7 @@ fun familyStartRule(state: State) = commandRule("/start", state) { args, message
 /**
  * Processes bot leave messages by disconnecting chat from the family.
  */
-fun familyLeaveRule(store: BotStore, state: State) = rule { update, _ ->
+fun <C : Chat, F: Family<C>> familyLeaveRule(store: BotStore<C, F>, state: State<C, F>) = rule { update, _ ->
     if(!update.hasMessage()) return@rule emptyList()
     val message = update.message
     val chat = message.chat
@@ -127,12 +123,12 @@ fun familyLeaveRule(store: BotStore, state: State) = rule { update, _ ->
     if(leftChatMember == null || leftChatMember.id != state.botUserId)
         return@rule emptyList()
     val family = store.families
-        .firstOrNull { chatId in it.chatIds }
+        .firstOrNull { chatId in it.chats.map(Chat::id) }
         ?: return@rule emptyList()
-    family.chatIds.remove(chatId)
+    store.removeChatFromFamily(family, chatId)
     listOf(
         SendMessageAction(
-            family.adminChatId,
+            family.adminChat.id,
             "Chat \"${chat.title}\" left the family as the bot was removed from it :("
         )
     )
@@ -141,14 +137,14 @@ fun familyLeaveRule(store: BotStore, state: State) = rule { update, _ ->
 /**
  * Admin command `/family`: makes current chat a family admin chat.
  */
-fun familyCreateRule(store: BotStore, state: State) = adminCommandRule("/family", state) { _, message, queries ->
+fun <C : Chat, F: Family<C>> familyCreateRule(store: BotStore<C, F>, state: State<C, F>) = adminCommandRule("/family", state) { _, message, queries ->
     val chatId = message.chatId
     when {
-        chatId in store.families.map { it.adminChatId } -> listOf(
+        chatId in store.families.map { it.adminChat.id } -> listOf(
             SendMessageAction(chatId, "This chat is already bound to the family")
         )
         else -> {
-            store.families.add(Family(mutableListOf(), chatId))
+            store.addFamily(chatId)
             listOf(
                 SendMessageAction(chatId,
                     "This chat is now a family admin!\n" +
@@ -161,9 +157,9 @@ fun familyCreateRule(store: BotStore, state: State) = adminCommandRule("/family"
 /**
  * Admin command `/family_list`: if invoked from family admin chat, shows a list of chats present in current family.
  */
-fun familyListRule(store: BotStore, state: State) = adminCommandRule("/family_list", state) { _, message, queries ->
+fun <C : Chat, F: Family<C>> familyListRule(store: BotStore<C, F>, state: State<C, F>) = adminCommandRule("/family_list", state) { _, message, queries ->
     val chatId = message.chatId
-    val family = store.families.firstOrNull { it.adminChatId == chatId }
+    val family = store.families.firstOrNull { it.adminChat.id == chatId }
     if (family == null) {
         listOf(
             SendMessageAction(
@@ -176,7 +172,7 @@ fun familyListRule(store: BotStore, state: State) = adminCommandRule("/family_li
         listOf(
             SendMessageAction(
                 chatId,
-                family.chatIds.map(queries::getChatName).joinToString(
+                family.chats.map(Chat::id).map(queries::getChatName).joinToString(
                     prefix = "Chats in our family:\n- ",
                     separator = "\n-")
             )
@@ -189,9 +185,9 @@ fun familyListRule(store: BotStore, state: State) = adminCommandRule("/family_li
  * By following a link posted by the bot and picking a chat, one adds the bot to that chat, adds the chat to the family.
  * The procedure should be finished by manually granting admin permissions to the bot and clicking refresh button here.
  */
-fun familyAddRule(store: BotStore, state: State) = adminCommandRule("/family_add", state) { _, message, queries ->
+fun <C : Chat, F: Family<C>> familyAddRule(store: BotStore<C, F>, state: State<C, F>) = adminCommandRule("/family_add", state) { _, message, queries ->
     val chatId = message.chatId
-    val family = store.families.firstOrNull { it.adminChatId == chatId }
+    val family = store.families.firstOrNull { it.adminChat.id == chatId }
     if (family == null) {
         listOf(
             SendMessageAction(
@@ -221,10 +217,10 @@ fun familyAddRule(store: BotStore, state: State) = adminCommandRule("/family_add
 /**
  * A group of commands and rules related to family functionality.
  */
-fun familyRules(store: BotStore, state: State) = compositeRule(
+fun <C : Chat, F: Family<C>> familyRules(store: BotStore<C, F>, state: State<C, F>) = compositeRule(
     reportRule(store, state),
     refreshPermissionsCallbackRule(state),
-    familyStartRule(state),
+    familyStartRule(store, state),
     familyLeaveRule(store, state),
 
     familyCreateRule(store, state),

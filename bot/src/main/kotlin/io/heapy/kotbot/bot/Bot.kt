@@ -15,7 +15,7 @@ import org.telegram.telegrambots.meta.exceptions.TelegramApiException
 fun startBot(
     configuration: BotConfiguration,
     rules: List<Rule>,
-    state: State
+    state: State<XdChat, XdFamily>
 ): ShutdownBot {
     try {
         ApiContextInitializer.init()

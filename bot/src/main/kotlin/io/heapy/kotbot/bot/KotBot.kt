@@ -17,7 +17,7 @@ import org.telegram.telegrambots.meta.exceptions.TelegramApiRequestException
 class KotBot(
     private val configuration: BotConfiguration,
     private val rules: List<Rule>,
-    private val state: State
+    private val state: State<*, *>
 ) : TelegramLongPollingBot() {
     override fun getBotToken() = configuration.token
     override fun getBotUsername() = configuration.name

@@ -1,6 +1,7 @@
 package io.heapy.kotbot.bot.rule
 
 import io.heapy.kotbot.bot.*
+import io.heapy.kotbot.bot.Chat
 import io.heapy.logging.logger
 import org.telegram.telegrambots.meta.api.objects.*
 import java.net.URL
@@ -54,7 +55,7 @@ fun commandRule(rule: (Message, BotQueries) -> List<Action>): Rule = rule { upda
 /**
  * Creates rule processing command named [commandText]. Handles both commands with and without bot username appended.
  */
-fun commandRule(commandText: String, state: State, rule: (args: String, Message, BotQueries) -> List<Action>): Rule =
+fun commandRule(commandText: String, state: State<*, *>, rule: (args: String, Message, BotQueries) -> List<Action>): Rule =
     if(commandText.length > COMMAND_NAME_MAX_LENGTH)
         error("Command name must not be more than $COMMAND_NAME_MAX_LENGTH characters long.")
     else
@@ -79,7 +80,7 @@ fun commandRule(commandText: String, state: State, rule: (args: String, Message,
  * Creates rule processing command named [commandText]. Validates that the user invoking the command is an administrator
  * of the chat where the command is invoked.
  */
-fun adminCommandRule(commandText: String, state: State, rule: (String, Message, BotQueries) -> List<Action>) : Rule =
+fun adminCommandRule(commandText: String, state: State<*, *>, rule: (String, Message, BotQueries) -> List<Action>) : Rule =
     commandRule(commandText, state) { args, message, queries ->
         if(queries.isAdminUser(message.chatId, message.from.id)) {
             rule(args, message, queries)

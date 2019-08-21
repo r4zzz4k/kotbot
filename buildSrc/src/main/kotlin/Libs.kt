@@ -7,6 +7,11 @@ object Libs {
 
     const val tgBotApi = "org.telegram:telegrambots:4.2"
 
+    const val xodusVersion = "1.3.91"
+    const val xodusDnqVersion = "1.3.440"
+    const val xodusEntities = "org.jetbrains.xodus:xodus-entity-store:$xodusVersion"
+    const val xodusDnq = "org.jetbrains.xodus:dnq:$xodusDnqVersion"
+
     private const val ktor = "1.2.0"
     const val ktorServer = "io.ktor:ktor-server-netty:$ktor"
     const val ktorJackson = "io.ktor:ktor-jackson:$ktor"

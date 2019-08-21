@@ -6,6 +6,7 @@ import io.heapy.kotbot.configuration.Configuration
 import io.heapy.kotbot.metrics.createPrometheusMeterRegistry
 import io.heapy.kotbot.web.startServer
 import io.heapy.logging.logger
+import java.io.File
 
 /**
  * Entry point of bot.
@@ -19,8 +20,8 @@ object Application {
 
         val configuration = Configuration()
         val metricsRegistry = createPrometheusMeterRegistry(configuration)
-        val store = InMemoryStore()
-        val state = State()
+        val store = xodusStore(File("/tmp/kotbot-db"))
+        val state = State<XdChat, XdFamily>()
         val rules = listOfNotNull(
             policyRules(classLoader.getResource("contains.txt")),
             devRules(store, state),
