@@ -20,8 +20,9 @@ object Application {
 
         val configuration = Configuration()
         val metricsRegistry = createPrometheusMeterRegistry(configuration)
-        val store = xodusStore(File("/tmp/kotbot-db"))
-        val state = State<XdChat, XdFamily>()
+        val store = fileStore(File("/tmp/kotbot-db"))
+        //val store = inMemoryStore()
+        val state = State()
         val rules = listOfNotNull(
             policyRules(classLoader.getResource("contains.txt")),
             devRules(store, state),
