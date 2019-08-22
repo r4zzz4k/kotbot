@@ -5,7 +5,7 @@ import io.heapy.kotbot.bot.*
 /**
  * Command `/getid` (admin): responds with current chat id.
  */
-fun <C : Chat, F: Family<C>> getIdRule(state: State<C, F>) : Rule = adminCommandRule("/getid", state) { _, message, _ ->
+fun getIdRule(state: State) : Rule = adminCommandRule("/getid", state) { _, message, _ ->
     val chat = message.chat
     val chatId = chat.id
     listOf(
@@ -17,19 +17,21 @@ fun <C : Chat, F: Family<C>> getIdRule(state: State<C, F>) : Rule = adminCommand
 /**
  * Command `/adm message`: sends the message to family administrator chat.
  */
-fun <C : Chat, F: Family<C>> admRule(store: BotStore<C, F>, state: State<C, F>) : Rule = commandRule("/adm", state) { args, message, _ ->
+fun admRule(store: BotStore, state: State) : Rule = commandRule("/adm", state) { args, message, _ ->
     val admMsg = "@${message.from.userName}: $args"
     val chatId = message.chat.id
-    listOf(DeleteMessageAction(chatId, message.messageId)) +
-            store.families
-                .filter { chatId in it.chats.map(Chat::id) }
-                .map { SendMessageAction(it.adminChat.id, admMsg) }
+    val adminChatId = store.transactional {
+        store.findFamilyByChat(chatId)?.adminChat?.id
+    }
+    listOfNotNull(
+        DeleteMessageAction(chatId, message.messageId),
+        adminChatId?.let { SendMessageAction(it, admMsg) })
 }
 
 /**
  * A group of commands useful for development purposes.
  */
-fun <C : Chat, F: Family<C>> devRules(store: BotStore<C, F>, state: State<C, F>) = compositeRule(
+fun devRules(store: BotStore, state: State) = compositeRule(
     getIdRule(state),
     admRule(store, state)
 )
