@@ -1,5 +1,6 @@
 package io.heapy.kotbot.bot.rule
 
+import io.heapy.kotbot.bot.*
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton
 
 /**
@@ -12,23 +13,23 @@ sealed class Action
  * Represents an [Action] connected to a chat. Can be retried if previous invocation failed.
  */
 sealed class ChatAction : Action() {
-    abstract val chatId: Long
+    abstract val chatId: ChatId
 }
 
 /**
  * An [Action] which deletes message [messageId] from chat [chatId].
  */
 data class DeleteMessageAction(
-    override val chatId: Long,
-    val messageId: Int
+    override val chatId: ChatId,
+    val messageId: MessageId
 ) : ChatAction()
 
 /**
  * An [Action] which kicks user [userId] from chat [chatId].
  */
 data class KickUserAction(
-    override val chatId: Long,
-    val userId: Int
+    override val chatId: ChatId,
+    val userId: UserId
 ) : ChatAction()
 
 /**
@@ -36,7 +37,7 @@ data class KickUserAction(
  * TODO: abstract away inline keyboard.
  */
 data class SendMessageAction(
-    override val chatId: Long,
+    override val chatId: ChatId,
     val text: String,
     val inlineKeyboard: List<List<InlineKeyboardButton>>? = null
 ): ChatAction()
@@ -45,7 +46,7 @@ data class SendMessageAction(
  * An [Action] which forwards message [messageId] from chat [fromChatId] to chat [chatId].
  */
 data class ForwardMessageAction(
-    override val chatId: Long,
-    val fromChatId: Long,
-    val messageId: Int
+    override val chatId: ChatId,
+    val fromChatId: ChatId,
+    val messageId: MessageId
 ): ChatAction()

@@ -7,6 +7,6 @@ import org.telegram.telegrambots.meta.api.objects.Chat
  */
 interface BotQueries {
     fun getBotUser(): Pair<Int, String>
-    fun isAdminUser(chatId: Long, userId: Int): Boolean
-    fun getChat(chatId: Long): Chat
+    fun isAdminUser(chatId: ChatId, userId: UserId): Boolean
+    fun getChat(chatId: ChatId): Chat
 }

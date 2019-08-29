@@ -7,12 +7,12 @@ import io.heapy.kotbot.bot.rule.Action
  * needed between processing a sequence of interconnected updates.
  */
 class State {
-    var botUserId: Int = 0
+    var botUserId: UserId = 0
     lateinit var botUserName: String
     val familyAddRequests: MutableMap<String, Family> = mutableMapOf()
-    val deferredActions: MutableMap<Long, MutableList<Action>> = mutableMapOf()
+    val deferredActions: MutableMap<ChatId, MutableList<Action>> = mutableMapOf()
 
-    fun deferAction(chatId: Long, action: Action) {
+    fun deferAction(chatId: ChatId, action: Action) {
         deferredActions.getOrPut(chatId) { mutableListOf() } += action
     }
 }

@@ -16,7 +16,7 @@ import kotlinx.dnq.store.DummyEventsMultiplexer
 import kotlinx.dnq.store.XdQueryEngine
 import kotlinx.dnq.store.container.StaticStoreContainer
 import kotlinx.dnq.store.container.createTransientEntityStore
-import kotlinx.dnq.util.initMetaData
+import kotlinx.dnq.util.*
 import java.io.File
 
 fun fileStore(location: File) : BotStore =
@@ -42,7 +42,7 @@ fun inMemoryStore() : BotStore = xodusStore(TransientEntityStoreImpl().apply {
 private val ENV_NAME = "kotbot"
 
 private fun xodusStore(store: TransientEntityStoreImpl): BotStore {
-    XdModel.registerNodes(Family, Chat)
+    XdModel.registerNodes(XdFamily, XdChat)
     StaticStoreContainer.store = store
     initMetaData(XdModel.hierarchy, store)
     return BotStore(store)
@@ -52,61 +52,74 @@ private fun xodusStore(store: TransientEntityStoreImpl): BotStore {
  * Holds essential part of bot state, which should persist between restarts.
  */
 class BotStore(private val store: TransientEntityStore) {
-    fun <T> transactional(
-        readonly: Boolean = false,
-        queryCancellingPolicy: QueryCancellingPolicy? = null,
-        isNew: Boolean = false,
-        block: (TransientStoreSession) -> T
-    ) = store.transactional(readonly, queryCancellingPolicy, isNew, block)
-
-    fun findChatById(chatId: Long): Chat? = transactional {
-        Chat.filter { it.id eq chatId }.firstOrNull()
+    private fun findXdChatById(chatId: ChatId): XdChat? = store.transactional {
+        XdChat.filter { it.id eq chatId }.firstOrNull()
     }
 
-    fun findFamilyByAdminChat(adminChatId: Long): Family? = transactional {
-        val chat = findChatById(adminChatId) ?: return@transactional null
-        Family.filter { it.adminChat eq chat }.firstOrNull()
+    fun findChatById(chatId: ChatId): Chat? = findXdChatById(chatId)?.toModel()
+
+    fun findFamilyByAdminChat(adminChatId: ChatId): Family? = store.transactional {
+        val chat = findXdChatById(adminChatId) ?: return@transactional null
+        XdFamily.filter { it.adminChat eq chat }.firstOrNull()?.toModel()
     }
 
-    fun findFamilyByChat(chatId: Long): Family? = transactional {
-        val chat = findChatById(chatId) ?: return@transactional null
-        Family.filter { it.chats contains chat }.firstOrNull()
+    fun findFamilyByChat(chatId: ChatId): Family? = store.transactional {
+        val chat = findXdChatById(chatId) ?: return@transactional null
+        XdFamily.filter { it.chats contains chat }.firstOrNull()?.toModel()
     }
 
-    fun addFamily(adminChatId: Long): Family = store.transactional {
-        Family.new {
-            adminChat = Chat.new { id = adminChatId }
-        }
+    fun addFamily(adminChatId: ChatId): Family = store.transactional {
+        XdFamily.new {
+            adminChat = XdChat.new { id = adminChatId }
+        }.toModel()
     }
 
-    fun addChatToFamily(family: Family, chatId: Long): Chat = transactional {
-        Chat.new {
+    fun addChatToFamily(family: Family, chatId: ChatId): Chat = store.transactional {
+        XdChat.new {
             id = chatId
         }.also {
-            family.chats.add(it)
-        }
+            XdFamily.findById(family.id).chats.add(it)
+        }.toModel()
     }
 
-    fun removeChatFromFamily(family: Family, chatId: Long) = store.transactional {
-        Chat.query((Chat::id eq chatId) and (Chat::family eq family))
-        //family.chats.removeAll(Chat.query(Chat::id eq chatId))
+    fun removeChatFromFamily(family: Family, chatId: ChatId) = store.transactional {
+        val xdChat = findXdChatById(chatId) ?: return@transactional
+        val xdFamily = xdChat.family
+        if(xdFamily?.xdId != family.id) return@transactional
+        xdFamily.chats.remove(xdChat)
     }
 }
+
+// TODO decide if we want to replace this with inline class considering usage of `Set<ChatId>`
+typealias FamilyId = String
+typealias ChatId = Long
+typealias MessageId = Int
+typealias UserId = Int
 
 /**
  * Represents a family of chats. Chat family is a group of chats sharing policies, restrictions, admin list.
  * Family contains a list of corresponding [chats] and an [adminChat].
  */
-class Family(entity: Entity) : XdEntity(entity) {
-    companion object : XdNaturalEntityType<Family>()
+data class Family(val id: FamilyId, val chats: Set<ChatId>, val adminChat: ChatId)
+data class Chat(val id: ChatId)
 
-    val chats by xdLink0_N(Chat)
-    var adminChat: Chat by xdLink1(Chat::family)
+class XdFamily(entity: Entity) : XdEntity(entity) {
+    companion object : XdNaturalEntityType<XdFamily>()
+
+    val chats by xdLink0_N(XdChat)
+    var adminChat: XdChat by xdLink1(XdChat::family)
+
+    fun toModel(): Family = Family(
+        xdId,
+        chats.asSequence().map(XdChat::id).toSet(),
+        adminChat.id)
 }
 
-class Chat(entity: Entity) : XdEntity(entity) {
-    companion object : XdNaturalEntityType<Chat>()
+class XdChat(entity: Entity) : XdEntity(entity) {
+    companion object : XdNaturalEntityType<XdChat>()
 
-    var id: Long by xdRequiredLongProp()
-    val family: Family? by xdLink0_1(Family::adminChat)
+    var id: ChatId by xdRequiredLongProp()
+    val family: XdFamily? by xdLink0_1(XdFamily::adminChat)
+
+    fun toModel(): Chat = Chat(id)
 }

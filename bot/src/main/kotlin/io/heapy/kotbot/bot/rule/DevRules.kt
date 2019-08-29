@@ -20,12 +20,10 @@ fun getIdRule(state: State) : Rule = adminCommandRule("/getid", state) { _, mess
 fun admRule(store: BotStore, state: State) : Rule = commandRule("/adm", state) { args, message, _ ->
     val admMsg = "@${message.from.userName}: $args"
     val chatId = message.chat.id
-    val adminChatId = store.transactional {
-        store.findFamilyByChat(chatId)?.adminChat?.id
-    }
+    val family = store.findFamilyByChat(chatId) ?: return@commandRule emptyList()
     listOfNotNull(
         DeleteMessageAction(chatId, message.messageId),
-        adminChatId?.let { SendMessageAction(it, admMsg) })
+        SendMessageAction(family.adminChat, admMsg))
 }
 
 /**

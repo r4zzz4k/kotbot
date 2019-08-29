@@ -15,7 +15,7 @@ class TelegramApiQueries(private val api: AbsSender): BotQueries {
         return bot.id to bot.userName
     }
 
-    override fun isAdminUser(chatId: Long, userId: Int): Boolean {
+    override fun isAdminUser(chatId: ChatId, userId: UserId): Boolean {
         val member = api.execute(GetChatMember().also {
             it.chatId = chatId.toString()
             it.userId = userId
@@ -24,5 +24,5 @@ class TelegramApiQueries(private val api: AbsSender): BotQueries {
         return status == "creator" || status == "administrator"
     }
 
-    override fun getChat(chatId: Long): Chat = api.execute(GetChat(chatId))
+    override fun getChat(chatId: ChatId): Chat = api.execute(GetChat(chatId))
 }
