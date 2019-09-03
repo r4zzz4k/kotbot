@@ -4,6 +4,8 @@ import io.heapy.kotbot.bot.utils.execAsync
 import io.ktor.client.HttpClient
 import io.ktor.client.request.get
 import io.ktor.client.request.parameter
+import kotlinx.io.core.Input
+import org.telegram.telegrambots.meta.api.methods.GetFile
 import org.telegram.telegrambots.meta.api.methods.GetMe
 import org.telegram.telegrambots.meta.api.methods.groupadministration.GetChat
 import org.telegram.telegrambots.meta.api.methods.groupadministration.GetChatMember
@@ -12,7 +14,11 @@ import org.telegram.telegrambots.meta.bots.AbsSender
 /**
  * Provides [BotQueries] implementation for Telegram API.
  */
-class TelegramApiQueries(private val api: AbsSender, private val http: HttpClient): BotQueries {
+class TelegramApiQueries(
+    private val api: AbsSender,
+    private val botToken: String,
+    private val http: HttpClient
+): BotQueries {
     override suspend fun getBotUser(): Pair<Int, String> {
         val bot = api.execAsync(GetMe())
         return bot.id to bot.userName
@@ -28,6 +34,14 @@ class TelegramApiQueries(private val api: AbsSender, private val http: HttpClien
     }
 
     override suspend fun getChatName(chatId: Long): String = api.execAsync(GetChat(chatId)).title
+
+    override suspend fun getFile(fileId: String): Input {
+        val request = GetFile().also {
+            it.fileId = fileId
+        }
+        val fileUrl = api.execAsync(request).getFileUrl(botToken)
+        return http.get(fileUrl)
+    }
 
     override suspend fun isCasBanned(userId: Int): Boolean =
         http

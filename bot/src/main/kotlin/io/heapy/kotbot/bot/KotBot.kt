@@ -40,7 +40,7 @@ class KotBot(
         }
     }
 
-    private val queries = TelegramApiQueries(this, httpClient)
+    private val queries = TelegramApiQueries(this, configuration.token, httpClient)
 
     init {
         runBlocking {
