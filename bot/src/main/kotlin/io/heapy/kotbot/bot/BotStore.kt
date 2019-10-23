@@ -5,6 +5,7 @@ package io.heapy.kotbot.bot
  */
 interface BotStore {
     val families: MutableList<Family>
+    val knownUsers: MutableMap<Int, UserInfo>
 }
 
 /**
@@ -14,4 +15,10 @@ interface BotStore {
 class Family(
     val chatIds: MutableList<Long>,
     val adminChatId: Long
+)
+
+class UserInfo(
+    val userId: Int,
+    val userName: String?,
+    val fullName: String
 )

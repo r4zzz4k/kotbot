@@ -14,6 +14,7 @@ import org.telegram.telegrambots.meta.api.methods.ForwardMessage
 import org.telegram.telegrambots.meta.api.methods.groupadministration.KickChatMember
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.DeleteMessage
+import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageReplyMarkup
 import org.telegram.telegrambots.meta.api.objects.Update
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup
 import org.telegram.telegrambots.meta.exceptions.TelegramApiRequestException
@@ -24,6 +25,7 @@ import org.telegram.telegrambots.meta.exceptions.TelegramApiRequestException
 class KotBot(
     private val configuration: BotConfiguration,
     private val rules: List<Rule>,
+    private val processors: List<Processor<*>>,
     private val state: State
 ) : TelegramLongPollingBot() {
     override fun getBotToken() = configuration.token
@@ -80,6 +82,15 @@ class KotBot(
             }
             is ForwardMessageAction -> {
                 execAsync(ForwardMessage(action.chatId, action.fromChatId, action.messageId))
+            }
+            is EditMessageReplyMarkupAction -> {
+                execAsync(EditMessageReplyMarkup().also {
+                    it.chatId = action.chatId.toString()
+                    it.messageId = action.messageId
+                    it.replyMarkup = InlineKeyboardMarkup().apply {
+                        keyboard = action.keyboard
+                    }
+                })
             }
         }
         Unit

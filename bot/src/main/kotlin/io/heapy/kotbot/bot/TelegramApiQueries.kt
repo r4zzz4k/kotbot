@@ -7,6 +7,8 @@ import io.ktor.client.request.parameter
 import org.telegram.telegrambots.meta.api.methods.GetMe
 import org.telegram.telegrambots.meta.api.methods.groupadministration.GetChat
 import org.telegram.telegrambots.meta.api.methods.groupadministration.GetChatMember
+import org.telegram.telegrambots.meta.api.objects.Chat
+import org.telegram.telegrambots.meta.api.objects.ChatMember
 import org.telegram.telegrambots.meta.bots.AbsSender
 
 /**
@@ -27,7 +29,13 @@ class TelegramApiQueries(private val api: AbsSender, private val http: HttpClien
         return status == "creator" || status == "administrator"
     }
 
-    override suspend fun getChatName(chatId: Long): String = api.execAsync(GetChat(chatId)).title
+    override suspend fun getChat(chatId: Long): Chat = api.execAsync(GetChat(chatId))
+
+    override suspend fun getChatMember(chatId: Long, userId: Int): ChatMember =
+        api.execAsync(GetChatMember().apply {
+            this.chatId = chatId.toString()
+            this.userId = userId
+        })
 
     override suspend fun isCasBanned(userId: Int): Boolean =
         http

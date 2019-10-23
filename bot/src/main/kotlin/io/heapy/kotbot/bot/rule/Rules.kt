@@ -1,9 +1,10 @@
 package io.heapy.kotbot.bot.rule
 
-import io.heapy.kotbot.bot.*
+import io.heapy.kotbot.bot.BotQueries
+import io.heapy.kotbot.bot.State
 import io.heapy.logging.logger
 import org.telegram.telegrambots.meta.api.objects.*
-import java.net.URL
+import java.io.Serializable
 
 /**
  * @author Ruslan Ibragimov
@@ -89,5 +90,16 @@ suspend fun adminCommandRule(commandText: String, state: State, rule: suspend (S
     }
 
 private const val COMMAND_NAME_MAX_LENGTH = 32
+
+interface Processor<T: Serializable> {
+    suspend fun process(input: T, queries: BotQueries): List<Action>
+}
+
+suspend fun <T: Serializable> processor(processor: suspend (T, BotQueries) -> List<Action>): Processor =
+    object : Processor<T> {
+        override suspend fun process(input: T, queries: BotQueries): List<Action> =
+            process(input, queries)
+    }
+
 
 internal val LOGGER = logger<Rule>()

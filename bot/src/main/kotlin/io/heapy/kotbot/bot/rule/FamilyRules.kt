@@ -1,19 +1,14 @@
 package io.heapy.kotbot.bot.rule
 
 import io.heapy.kotbot.bot.*
-import io.heapy.kotbot.bot.utils.*
-import org.telegram.telegrambots.meta.api.objects.Update
+import io.heapy.kotbot.bot.utils.fullRef
+import io.heapy.kotbot.bot.utils.publicLink
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton
 
 /**
- * Callback query ids for family functionality
+ * Callback query id. Instructs bot to check if it's an admin of the chats in the family.
  */
-enum class FamilyCallbacks {
-    /**
-     * Instructs bot to check if it's an admin of the chats in the family.
-     */
-    RefreshAdminPermissions
-}
+private const val REFRESH_ADMIN_PERMISSIONS = "RefreshAdminPermissions"
 
 /**
  * Command `/report`: pings family admin chat for them to pay attention to events happening in current chat.
@@ -43,10 +38,10 @@ suspend fun reportRule(store: BotStore, state: State) = commandRule("/report", s
 }
 
 /**
- * Callback query processing [FamilyCallbacks.RefreshAdminPermissions].
+ * Callback query processing [REFRESH_ADMIN_PERMISSIONS].
  */
 suspend fun refreshPermissionsCallbackRule(state: State) = callbackQueryRule { callback, _ ->
-    if(callback.data != FamilyCallbacks.RefreshAdminPermissions.name)
+    if(callback.data != REFRESH_ADMIN_PERMISSIONS)
         emptyList()
     else
         // TODO should definitely get family and retry actions only for it
@@ -97,7 +92,7 @@ suspend fun familyStartRule(state: State) = commandRule("/start", state) { args,
                         listOf(
                             listOf(
                                 InlineKeyboardButton("Admin rights granted").apply {
-                                    callbackData = FamilyCallbacks.RefreshAdminPermissions.name
+                                    callbackData = REFRESH_ADMIN_PERMISSIONS
                                 }
                             )
                         )
@@ -177,7 +172,7 @@ suspend fun familyListRule(store: BotStore, state: State) = adminCommandRule("/f
             SendMessageAction(
                 chatId,
                 family.chatIds
-                    .map { queries.getChatName(it) }
+                    .map { queries.getChat(it).title }
                     .joinToString(
                         prefix = "Chats in our family:\n- ",
                         separator = "\n-"

@@ -5,4 +5,5 @@ package io.heapy.kotbot.bot
  */
 class InMemoryStore : BotStore {
     override val families: MutableList<Family> = mutableListOf()
+    override val knownUsers: MutableMap<Int, UserInfo> = mutableMapOf()
 }

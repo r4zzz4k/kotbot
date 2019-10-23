@@ -25,7 +25,9 @@ object Application {
         val rules = listOfNotNull(
             policyRules(classLoader.getResource("contains.txt")),
             devRules(store, state),
-            familyRules(store, state)
+            familyRules(store, state),
+            cacheRules(store),
+            voteRules(store, state)
         )
 
         startServer(

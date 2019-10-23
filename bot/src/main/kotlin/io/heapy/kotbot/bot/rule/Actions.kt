@@ -49,3 +49,9 @@ data class ForwardMessageAction(
     val fromChatId: Long,
     val messageId: Int
 ): ChatAction()
+
+data class EditMessageReplyMarkupAction(
+    override val chatId: Long,
+    val messageId: Int,
+    val keyboard: List<List<InlineKeyboardButton>>
+): ChatAction()
